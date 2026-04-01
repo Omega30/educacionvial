@@ -1,0 +1,675 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador examen vial</title>
+    <style>
+        :root {
+            --primary: #2c3e50;
+            --accent: #3498db;
+            --success: #27ae60;
+            --error: #e74c3c;
+            --warning: #f1c40f;
+            --bg: #f8f9fa;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            background-color: var(--bg);
+            margin: 0;
+            padding: 10px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            max-width: 750px;
+            width: 100%;
+            background: white;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 15px 35px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        h1 { text-align: center; color: var(--primary); font-size: 1.8rem; }
+        
+        #setup-screen, #result-screen { text-align: center; padding: 30px 0; }
+        
+        .btn-main {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1.1rem;
+            transition: 0.3s;
+        }
+        .btn-main:hover:not(:disabled) { background: #2980b9; transform: translateY(-2px); }
+        .btn-main:disabled { background: #ccc; cursor: not-allowed; }
+        
+        select {
+            padding: 10px;
+            width: 200px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            border: 2px solid #ddd;
+        }
+
+        .question-card { margin-top: 20px; }
+        .question-text {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: #1a1a1a;
+            margin-bottom: 20px;
+            line-height: 1.4;
+        }
+
+        .sign-img {
+            display: block;
+            margin: 0 auto 20px;
+            max-width: 180px;
+            height: auto;
+            border-radius: 10px;
+            border: 4px solid #f0f0f0;
+        }
+
+        .options-grid { display: grid; gap: 12px; }
+        .opt-btn {
+            padding: 18px;
+            border: 2px solid #edf0f2;
+            border-radius: 12px;
+            background: #fff;
+            text-align: left;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: 0.2s;
+            display: flex;
+            align-items: center;
+        }
+        .opt-btn:hover:not(:disabled) { border-color: var(--accent); background: #f7fbfe; }
+        .opt-letter {
+            background: #eee;
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            margin-right: 15px;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .feedback-box {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 12px;
+            display: none;
+            animation: fadeIn 0.4s;
+        }
+        .feedback-title { font-weight: 800; margin-bottom: 8px; font-size: 1.1rem; }
+        .feedback-reason { font-size: 0.95rem; line-height: 1.5; color: #444; }
+
+        /* Animación de "salto" o pulsación */
+@keyframes popIn {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.05); }
+    100% { transform: scale(1.03); }
+}
+
+/* Estado Correcto: Forzamos el color del texto y la animación */
+.correct { 
+    border-color: var(--success) !important; 
+    background: #e9f7ef !important; 
+    color: #155724 !important; /* Verde oscuro para que se lea perfecto */
+    font-weight: 800 !important;
+    opacity: 1 !important; /* Evita que se ponga gris al deshabilitarse */
+    animation: popIn 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    z-index: 10;
+    box-shadow: 0 4px 15px rgba(39, 174, 96, 0.3);
+}
+
+/* Estado Incorrecto: Para que también sea legible */
+.incorrect { 
+    border-color: var(--error) !important; 
+    background: #fdf2f2 !important; 
+    color: #721c24 !important; /* Rojo oscuro */
+    opacity: 0.8 !important;
+    transform: scale(0.98); /* Pequeña contracción para diferenciarla */
+}
+
+/* Regla vital: Forzar visibilidad en botones deshabilitados */
+.opt-btn:disabled {
+    cursor: default;
+    color: #444; /* Color base para las opciones que no elegiste */
+}
+
+        .progress-container { background: #eee; height: 10px; border-radius: 5px; margin-bottom: 30px; }
+        .progress-fill { background: var(--success); height: 100%; width: 0%; border-radius: 5px; transition: 0.5s; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    </style>
+</head>
+<body>
+<nav class="navbar-vial">
+    <div class="nav-logo">Educación Vial</div>
+    <div class="nav-links">
+        <a href="../index.html" class="nav-item">🏠 Inicio</a>
+        <a href="SIMULADOR 2.HTML" class="nav-item">📝 Simulador</a>
+        <a href="señales.html" class="nav-item">🛑 Señalamientos</a>
+    </div>
+</nav>
+
+<style>
+    /* Estilos para la barra superior */
+    .navbar-vial {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 70px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        background: rgba(66, 70, 50, 0.9); /* Azul marino traslúcido */
+        backdrop-filter: blur(10px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        z-index: 1000;
+        padding: 0 50px;
+        box-sizing: border-box;
+    }
+
+    .nav-logo {
+        font-weight: 700;
+        font-size: 1.4rem;
+        color: #fcfcfc;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+    .nav-links {
+        display: flex;
+        gap: 20px;
+    }
+
+    .nav-item {
+        color: white;
+        text-decoration: none;
+        font-size: 0.9rem;
+        font-weight: 500;
+        padding: 8px 15px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        border: 1px solid transparent;
+    }
+
+    .nav-item:hover {
+        background: rgba(52, 152, 219, 0.2);
+        border-color: #3498db;
+        color: #3498db;
+    }
+
+    /* Ajuste para el contenido de la página para que no se oculte tras la barra */
+    body {
+        padding-top: 100px; 
+    }
+</style>
+<div class="container">
+    <h1>🚦 Simulador de Examen Vial</h1>
+
+    <div id="setup-screen">
+        <p id="loading-text" style="color: var(--accent);">Cargando señales...</p>
+        <div id="controls" style="display:none;">
+            <p style="color: #666;">Selecciona el número de reactivos:</p>
+            <select id="question-count">
+                <option value="5">15 Preguntas</option>
+                <option value="10">20 Preguntas</option>
+                <option value="20">30 Preguntas</option>
+                <option value="40">Examen Completo</option>
+            </select><br>
+            <button class="btn-main" onclick="startQuiz()">Empezar Examen</button>
+        </div>
+    </div>
+
+    <div id="quiz-area" style="display:none;">
+        <div class="progress-container"><div id="progress-fill" class="progress-fill"></div></div>
+        <div id="question-content"></div>
+        <button id="next-btn" class="btn-main" style="display:none; width: 100%; margin-top: 20px;" onclick="loadNext()">Siguiente Pregunta</button>
+    </div>
+
+    <div id="result-screen" style="display:none;">
+        <h2 id="result-title"></h2>
+        <div style="font-size: 3rem; margin: 20px 0;" id="final-score">0%</div>
+        <p id="result-text"></p>
+        <button class="btn-main" onclick="location.reload()">Reiniciar Simulador</button>
+    </div>
+</div>
+<script src="js/señales.js"></script>
+<script>
+    // 1. Preguntas base de texto
+    const database = [
+    {
+        q: "¿En qué se clasifican las señales de tránsito?",
+        ok: "Preventivas (Amarillas), Restrictivas (Rojas con negro), Informativas (Azules)",
+        bad: ["Preventivas (Rojas), Restrictivas (Amarillas), Informativas (Verdes)", "Preventivas (Azules), Restrictivas (Amarillas), Informativas (Rojas)"],
+        why: "El código de colores ayuda a identificar la función antes de leer el símbolo: Amarillo (Alerta), Rojo (Mandato/Prohibición), Azul (Servicio)."
+    },
+    {
+        q: "¿Cuántos pasajeros pueden viajar dentro de un vehículo?",
+        ok: "Los indicados en la tarjeta de circulación",
+        bad: ["Máximo 5 personas", "Los que quepan cómodamente"],
+        why: "Exceder la capacidad técnica del vehículo compromete la estabilidad, el frenado y la efectividad de los sistemas de seguridad como las bolsas de aire."
+    },
+    {
+        q: "¿Quién está obligado a utilizar el cinturón de seguridad dentro de un vehículo?",
+        ok: "Todos los pasajeros del vehículo",
+        bad: ["Solo el conductor", "Solo los pasajeros del asiento delantero"],
+        why: "En una colisión, un pasajero sin cinturón se convierte en un proyectil que puede causar la muerte de los demás ocupantes, además de la propia."
+    },
+    {
+        q: "¿Cuál es el límite de velocidad en zonas escolares, hospitales u oficinas?",
+        ok: "20 kilómetros por hora",
+        bad: ["30 kilómetros por hora", "40 kilómetros por hora"],
+        why: "A esta velocidad, la distancia de frenado es mínima, permitiendo reaccionar a tiempo ante el cruce inesperado de un niño o paciente."
+    },
+    {
+        q: "¿Bajo qué circunstancias es permitida la vuelta a la derecha?",
+        ok: "Cuando exista el señalamiento, tras un alto total y cediendo el paso",
+        bad: ["En ningún caso", "Solo con semáforo en verde"],
+        why: "La vuelta continua es una medida de fluidez vehicular condicionada a la existencia de señalamiento expreso; sin embargo, el peatón conserva la prioridad de paso en todo momento, de acuerdo con la jerarquía de movilidad."
+    },
+    {
+        q: "¿Qué diferencia principal existe entre una multa y una amonestación?",
+        ok: "La multa es una sanción económica, mientras que la amonestación es una advertencia educativa",
+        bad: ["La multa se aplica a vehículos y la amonestación a personas", "No hay diferencia; ambos términos significan lo mismo legalmente"],
+        why: "La multa te cuesta dinero su fin es sancionar y desincentivar que repitas la infracción; la amonestación es solo un aviso para que no lo vuelvas a hacer",
+    },
+    {
+        q: "¿En qué lugares está prohibido el estacionamiento?",
+        ok: "Camellones, rampas para minusválidos, doble fila y andadores",
+        bad: ["Solo en camellones y banquetas", "Solo frente a hospitales y escuelas"],
+        why: "Obstruir estos espacios impide el libre tránsito, viola la accesibilidad universal y pone en riesgo a otros conductores al reducir la visibilidad."
+    },
+    {
+        q: "Si un pasajero arroja basura al exterior; ¿Quién es responsable?",
+        ok: "El conductor del vehículo",
+        bad: ["El pasajero que arrojó la basura", "Ambos son responsables"],
+        why: "Legalmente, el conductor es la autoridad dentro de la unidad y es responsable de lo que ocurra o se arroje desde su vehículo."
+    },
+    {
+        q: "¿Qué tipos de vehículos podrán circular con los vidrios polarizados?",
+        ok: "Los vehículos que vengan instalados con vidrios polarizados desde la fábrica",
+        bad: ["Todos los vehículos pueden polarizar sus vidrios", "Solo los vehículos de lujo"],
+        why: "Los niveles de opacidad de fábrica cumplen con normas de seguridad que permiten la visibilidad del conductor y la identificación desde el exterior."
+    },
+    {
+        q: "¿En las glorietas sin semáforos quién tiene preferencia?",
+        ok: "Los vehículos que ya se encuentren circulando en ella",
+        bad: ["Los que vienen de la derecha", "Los vehículos más grandes"],
+        why: "Este principio evita que la glorieta se bloquee; si el flujo interno se detiene, la intersección entera colapsa."
+    },
+    {
+        q: "¿Qué casos están prohibidos realizar en la vía pública?",
+        ok: "Efectuar carreras o 'arrancones' u obstruir la vialidad",
+        bad: ["Solo efectuar carreras", "Solo estacionar en doble fila"],
+        why: "Estas actividades representan un peligro de muerte para terceros y degradan la función principal de la vía que es el tránsito seguro."
+    },
+    {
+        q: "Es una regla para los motociclistas y su acompañante:",
+        ok: "El uso de casco y anteojos protectores",
+        bad: ["Solo el uso de casco", "Solo el uso de anteojos protectores"],
+        why: "El casco reduce drásticamente el riesgo de muerte por traumatismo craneoencefálico, y los anteojos evitan que objetos extraños causen accidentes por pérdida de visibilidad o ceguera temporal.."
+    },
+    {
+        q: "Todos los vehículos automotores de uso particular deberán contar con:",
+        ok: "Póliza de seguro de responsabilidad civil vigente",
+        bad: ["Solo seguro contra robo", "Seguro de gastos médicos únicamente"],
+        why: "Es obligatorio para garantizar que cualquier daño causado a terceros (personas o bienes) pueda ser indemnizado conforme a la ley."
+    },
+    {
+        q: "Son causas de cancelación de la licencia:",
+        ok: "Manejar bajo efectos de drogas o en estado de ebriedad",
+        bad: ["Solo por conducir en exceso de velocidad", "No usar cinturón de seguridad"],
+        why: "Conducir intoxicado es una falta gravísima que anula la aptitud legal para operar un vehículo por el alto riesgo social que representa."
+    },
+    {
+        q: "¿Qué deben hacer los conductores ante un semáforo en luz roja?",
+        ok: "Detenerse en la línea de 'alto' sin invadir el paso peatonal",
+        bad: ["Reducir la velocidad solamente", "Continuar si no hay peatones"],
+        why: "Invadir el paso peatonal obliga a los peatones a rodear el auto, exponiéndolos al flujo vehicular de otros carriles."
+    },
+    {
+        q: "¿Está permitido realizar llamadas por celular mientras conduce?",
+        ok: "Solo con manos libres",
+        bad: ["No está permitido", "Solo en emergencias"],
+        why: "El uso manual del celular distrae tanto física como cognitivamente, aumentando el tiempo de reacción ante un imprevisto."
+    },
+    {
+        q: "¿Pueden las motocicletas circular por banquetas y áreas peatonales?",
+        ok: "En ningún caso",
+        bad: ["Solo en emergencias", "Solo cuando hay mucho tráfico"],
+        why: "La banqueta es un espacio exclusivo de seguridad para el peatón; cualquier vehículo motorizado ahí representa una invasión y un peligro."
+    },
+    {
+        q: "¿Qué vehículos pueden circular en carriles de contraflujo?",
+        ok: "Vehículos de emergencia (patrullas, ambulancias, bomberos)",
+        bad: ["Cualquier vehículo en caso de emergencia", "Solo ambulancias"],
+        why: "Estos carriles están diseñados para reducir tiempos de respuesta en situaciones donde cada segundo cuenta para salvar vidas."
+    },
+    {
+        q: "¿Sanción si los datos de la placa no coinciden con la tarjeta de circulación?",
+        ok: "Multa de hasta 30 días de salario minimo y retención del vehículo",
+        bad: ["Solo multa de 10 días de salario minimo", "Solo amonestación"],
+        why: "La inconsistencia de datos sugiere irregularidades legales o posibles vehículos robados, por lo que la autoridad debe resguardar la unidad."
+    },
+    {
+        q: "¿Cuándo deben ser presentados ante las autoridades en un accidente?",
+        ok: "Cuando las partes no estén de acuerdo en la reparación de los daños",
+        bad: ["En todos los casos", "Solo cuando hay lesionados"],
+        why: "Si no hay un convenio entre particulares, la autoridad debe intervenir para peritar y deslindar responsabilidades legalmente."
+    },
+    {
+        q: "Los conductores con síntomas de ebriedad que violen el reglamento serán:",
+        ok: "Presentados ante el Oficial calificador o autoridad competente",
+        bad: ["Solo multados", "Liberados después de pagar la multa"],
+        why: "El estado de ebriedad es una condición administrativa o penal que requiere la certificación de un médico y la sanción de un juez."
+    },
+    {
+        q: "¿Es obligación de los agentes auxiliar en caso de descompostura?",
+        ok: "Sí, es su obligación",
+        bad: ["No, solo si se lo piden", "Solo en carreteras"],
+        why: "Los agentes de tránsito tienen como función principal servir a la ciudadanía y asegurar que un vehículo varado no cause un accidente mayor."
+    },
+    {
+        q: "¿Límite de alcohol para transportes de carga o pasajeros?",
+        ok: "Ninguna cantidad de alcohol en la sangre o aire espirado",
+        bad: ["0.4 gramos por litro de sangre", "0.8 gramos por litro de sangre"],
+        why: "Debido a la gran responsabilidad y al peso de las unidades, el margen de error debe ser cero para garantizar la seguridad pública."
+    },
+    {
+        q: "¿Qué procede si usa torretas o faros rojos sin ser vehículo de emergencia?",
+        ok: "Multa de hasta 30 días de salario mínimo",
+        bad: ["Multa de 10 días de salario mínimo", "Solo amonestación"],
+        why: "El uso de señales exclusivas de emergencia confunde a otros conductores y puede provocar accidentes al intentar ceder el paso falsamente."
+    },
+    {
+        q: "¿De qué color deberán ser las luces delanteras de los vehículos?",
+        ok: "Blanco",
+        bad: ["Amarillo", "Azul"],
+        why: "La luz blanca proporciona la mejor visibilidad y contraste en la noche sin distorsionar los colores de las señales de tránsito."
+    },
+    {
+        q: "¿Los vehículos NO deberán portar faros de qué color en la parte trasera?",
+        ok: "Blanco",
+        bad: ["Rojo", "Amarillo"],
+        why: "La luz blanca en la parte trasera está reservada exclusivamente para la reversa, indicando a otros que el vehículo se mueve hacia atrás."
+    },
+    {
+        q: "¿Bajo qué circunstancias se puede pasar un semáforo en rojo?",
+        ok: "Solo si un oficial de tránsito lo indica",
+        bad: ["En caso de emergencia médica", "Cuando no hay otros vehículos"],
+        why: "Las indicaciones manuales de un oficial de tránsito prevalecen sobre cualquier señalización automática o fija."
+    },
+    {
+        q: "¿Para qué sirven las rayas longitudinales en el pavimento?",
+        ok: "Delimitan carriles de circulación y guían a los conductores",
+        bad: ["Solo para decoración", "Para marcar zonas de estacionamiento"],
+        why: "Organizan el flujo vehicular en filas ordenadas, evitando colisiones laterales por cambios de trayectoria imprevistos."
+    },
+    {
+        q: "¿Para qué sirven las rayas transversales en el pavimento?",
+        ok: "Indican el límite de parada y delimitan zona de cruce peatonal",
+        bad: ["Solo para delimitar carriles", "Para marcar zonas de carga"],
+        why: "Sirven como barrera visual para que el conductor no invada el espacio donde el peatón tiene la prioridad de cruce."
+    },
+    {
+        q: "Si no funcionan las direccionales y va a girar a la DERECHA, debe:",
+        ok: "Extender brazo izquierdo hacia arriba",
+        bad: ["Usar luces de emergencia", "Tocar el claxon"],
+        why: "Son señales manuales universales que permiten la comunicación entre conductores en caso de fallas eléctricas en el vehículo."
+    },
+    {
+        q: "¿Causa por la que NO se expida o reexpida una licencia?",
+        ok: "Cuando la documentación sea falsa, se proporcionen informes falsos, o el solicitante no sepa leer y escribir",
+        bad: ["Solo por edad avanzada", "Por falta de estudios profesionales"],
+        why: "La licencia es un documento oficial que acredita la identidad y aptitud del conductor; cualquier fraude en el proceso invalida el derecho a obtenerla. Asimismo, saber leer y escribir es un requisito esencial para comprender la señalización y el reglamento, garantizando la seguridad vial."
+    },
+    {
+        q: "¿Cuándo tienen preferencia ambulancias, patrullas y bomberos?",
+        ok: "Cuando circulen con sirena o torreta luminosa encendida",
+        bad: ["Solo con la sirena", "En cualquier momento"],
+        why: "Las señales audibles y visuales indican que el vehículo está atendiendo una emergencia real y requiere paso libre inmediato."
+    },
+    {
+        q: "¿Qué hacer al incorporarse a una vía primaria?",
+        ok: "Ceder el paso a los vehículos que circulen por la misma",
+        bad: ["Acelerar para incorporarse rápidamente", "Esperar que no haya vehículos"],
+        why: "El vehículo que ya transita por la vía primaria tiene la preferencia de paso por flujo y velocidad."
+    },
+    {
+        q: "¿Por dónde queda prohibido rebasar a otro vehículo?",
+        ok: "Por el acotamiento",
+        bad: ["Por la izquierda", "Por la derecha"],
+        why: "El acotamiento es para emergencias o detenciones temporales; rebasar por ahí es peligroso debido a la posible presencia de vehículos parados o peatones."
+    },
+    {
+        q: "En accidentes con lesionados, los conductores deben:",
+        ok: "Permanecer en el lugar para prestar asistencia y dar aviso a la autoridad",
+        bad: ["Retirarse inmediatamente del lugar", "Solo llamar a una ambulancia"],
+        why: "Huir del lugar de un accidente con lesionados puede constituir un delito de omisión de auxilio, agravando la situación jurídica."
+    },
+    {
+        q: "¿Cuál es el objeto de las señales preventivas?",
+        ok: "Advertir la naturaleza de un peligro o cambio en la vía",
+        bad: ["Prohibir el paso", "Dar información de servicios"],
+        why: "Su función es que el conductor anticipe maniobras o reduzca la velocidad antes de llegar al punto crítico indicado."
+    },
+    {
+        q: "¿Cuál es el objeto de las señales restrictivas?",
+        ok: "Indican lo que el conductor no debe hacer o los limites que debe respetar",
+        bad: ["Advertir la naturaleza de un peligro o cambio en la vía", "Estas señales son sugerencias, opcionales para mejorar el flujo vehicular"],
+        why: "Su función es que el conductor sepa de las limitaciones fisicas o prohibiciones reglamentarias que regulen el transito, su cumplimiento es obligatorio."
+    },
+    {
+        q: "¿En qué caso se permite estacionarse en segunda fila?",
+        ok: "En ningún caso",
+        bad: ["Solo por 5 minutos", "Con las luces de emergencia encendidas"],
+        why: "La doble fila reduce la capacidad de la vía a la mitad, genera congestión innecesaria y obliga a otros a realizar maniobras peligrosas para rebasar."
+    },
+    {
+        q: "¿Condición para realizar ascenso y descenso de pasajeros?",
+        ok: "Que el vehículo esté sin movimiento",
+        bad: ["A baja velocidad", "En cualquier momento"],
+        why: "Intentar subir o bajar con el vehículo en movimiento es la causa principal de caídas y atropellamientos relacionados con transporte."
+    },
+    {
+        q: "¿Cuál es el objeto de las señales informativas?",
+        ok: "Guía para identificar calles, poblaciones y servicios",
+        bad: ["Advertir peligros", "Prohibir el paso"],
+        why: "Facilitan la navegación del usuario para que llegue a su destino de forma segura y sin distracciones por desorientación."
+    }
+];
+
+    let señalesJSON = null;
+    let quizSet = [];
+    let currentPos = 0;
+    let score = 0;
+
+    // Función para mezclar
+    function shuffle(arr) { return arr.sort(() => Math.random() - 0.5); }
+
+    // --- CARGA DE DATOS LOCALES ---
+function loadExternalData() {
+    // Verificamos si la variable del archivo js/señales.js existe
+    if (typeof datosSeñales !== 'undefined') {
+        señalesJSON = datosSeñales;
+        
+        // Mostrar controles de inmediato
+        document.getElementById('loading-text').style.display = 'none';
+        document.getElementById('controls').style.display = 'block';
+    } else {
+        document.getElementById('loading-text').innerText = "Error: No se encontró la variable datosSeñales en señales.js";
+    }
+}
+
+
+    // Función para obtener la cuota exacta de señales
+function getRequiredSignals(json) {
+    if (!json) return [];
+    
+    const allTitles = Object.values(json).map(s => s.title);
+    const selectedQuestions = [];
+    
+    // Definimos la configuración de preguntas
+    const quota = [
+        { cat: 'preventivas', amount: 3 },
+        { cat: 'restrictivas', amount: 3 },
+        { cat: 'informativas', amount: 3 },
+        { cat: 'obra', amount: 1 }
+    ];
+
+    // Agrupamos el JSON por categorías para facilitar la extracción
+    const byCategory = {};
+    Object.values(json).forEach(item => {
+        const c = item.category.toLowerCase();
+        if (!byCategory[c]) byCategory[c] = [];
+        byCategory[c].push(item);
+    });
+
+    // Extraemos según la cuota
+    quota.forEach(q => {
+        if (byCategory[q.cat]) {
+            const picked = shuffle([...byCategory[q.cat]]).slice(0, q.amount);
+            picked.forEach(s => {
+                const incorrect = shuffle(allTitles.filter(t => t !== s.title)).slice(0, 2);
+                selectedQuestions.push({
+                    q: `Identifica esta señal de tipo ${s.category.toUpperCase()}:`,
+                    img: s.images[0].src,
+                    ok: s.title,
+                    bad: incorrect,
+                    why: s.description
+                });
+            });
+        }
+    });
+
+    return selectedQuestions;
+}
+
+async function startQuiz() {
+    if (!señalesJSON) await loadExternalData();
+
+    const textCount = parseInt(document.getElementById('question-count').value);
+    
+    // 1. Obtenemos las preguntas de texto (según selección del usuario)
+    const textQuestions = shuffle([...database]).slice(0, textCount);
+
+    // 2. Obtenemos las 10 señales fijas (3+3+3+1)
+    const signalQuestions = getRequiredSignals(señalesJSON);
+
+    // 3. Unimos ambos grupos (El total será: seleccionadas + 10 señales)
+    // Usamos shuffle al final para que aparezcan mezcladas entre sí
+    quizSet = shuffle([...textQuestions, ...signalQuestions]);
+
+    console.log(`Total de preguntas: ${quizSet.length} (${textQuestions.length} texto + ${signalQuestions.length} señales)`);
+
+    document.getElementById('setup-screen').style.display = 'none';
+    document.getElementById('quiz-area').style.display = 'block';
+    
+    currentPos = 0;
+    score = 0;
+    renderQuestion();
+}
+
+    function renderQuestion() {
+        const data = quizSet[currentPos];
+        const options = shuffle([data.ok, ...data.bad]);
+        const letters = ['A', 'B', 'C'];
+        
+        let html = `
+            <div class="question-card">
+                <div class="question-text">${currentPos + 1}. ${data.q}</div>
+                ${data.img ? `<img src="${data.img}" class="sign-img">` : ''}
+                <div class="options-grid">
+        `;
+
+        options.forEach((opt, i) => {
+            html += `
+                <button class="opt-btn" onclick="validate(this, '${opt === data.ok}')">
+                    <span class="opt-letter">${letters[i]}</span>
+                    <span>${opt}</span>
+                </button>
+            `;
+        });
+
+        html += `</div><div id="feedback" class="feedback-box"></div></div>`;
+        document.getElementById('question-content').innerHTML = html;
+        document.getElementById('next-btn').style.display = 'none';
+        updateProgress();
+    }
+
+    window.validate = function(btn, isCorrect) {
+        const buttons = document.querySelectorAll('.opt-btn');
+        const feedback = document.getElementById('feedback');
+        const data = quizSet[currentPos];
+        
+        buttons.forEach(b => b.disabled = true);
+
+        if (isCorrect === "true") {
+            btn.classList.add('correct');
+            feedback.style.background = "#e9f7ef";
+            feedback.style.borderLeft = "5px solid var(--success)";
+            feedback.innerHTML = `
+                <div class="feedback-title" style="color:var(--success)">✅ ¡CORRECTO!</div>
+                <div class="feedback-reason"><strong>Explicación:</strong> ${data.why}</div>
+            `;
+            score++;
+        } else {
+            btn.classList.add('incorrect');
+            buttons.forEach(b => { if(b.innerText.includes(data.ok)) b.classList.add('correct'); });
+            feedback.style.background = "#fdf2f2";
+            feedback.style.borderLeft = "5px solid var(--error)";
+            feedback.innerHTML = `
+                <div class="feedback-title" style="color:var(--error)">❌ INCORRECTO</div>
+                <div class="feedback-reason">La respuesta era: ${data.ok}.<br><br><strong>¿Por qué?</strong> ${data.why}</div>
+            `;
+        }
+
+        feedback.style.display = 'block';
+        document.getElementById('next-btn').style.display = 'block';
+    };
+
+    function loadNext() {
+        currentPos++;
+        if (currentPos < quizSet.length) {
+            renderQuestion();
+        } else {
+            showFinal();
+        }
+    }
+
+    function updateProgress() {
+        const prg = (currentPos / quizSet.length) * 100;
+        document.getElementById('progress-fill').style.width = prg + "%";
+    }
+
+    function showFinal() {
+        document.getElementById('quiz-area').style.display = 'none';
+        document.getElementById('result-screen').style.display = 'block';
+        const percent = Math.round((score / quizSet.length) * 100);
+        document.getElementById('final-score').innerText = percent + "%";
+        
+        if(percent >= 80) {
+            document.getElementById('result-title').innerText = "¡Felicidades, Aprobado! 🚗";
+            document.getElementById('result-text').innerText = "Excelente conocimiento.";
+        } else {
+            document.getElementById('result-title').innerText = "Necesitas Repasar 📋";
+            document.getElementById('result-text').innerText = "Sigue practicando para obtener tu licencia.";
+        }
+    }
+
+    // Iniciar carga al cargar la página
+    loadExternalData();
+</script>
+</body>
+</html>
